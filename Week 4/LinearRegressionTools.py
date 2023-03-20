@@ -63,10 +63,3 @@ class LinearRegressionTools:
         plt.legend()
         plt.show()
 
-# Example dataset: y values depend on a single feature x
-x_values = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-y_values = np.array([60, 65, 70, 73, 76, 82, 85, 87, 89, 92])
-
-# Initialize the LinearRegressionTools class and plot the data and regression line
-lrt = LinearRegressionTools(x_values[:, np.newaxis], y_values)
-lrt.plot_data_and_regression_line()
