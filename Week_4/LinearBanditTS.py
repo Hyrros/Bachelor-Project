@@ -15,7 +15,7 @@ class LinearBanditTS:
     - sigma_prior: Prior standard deviation for the multivariate Gaussian distribution of theta.
     - sigma_noise: Standard deviation of the Gaussian noise in the reward.
     """
-    def __init__(self, d, sigma_prior=0.5, sigma_noise=0.5):
+    def __init__(self, d, sigma_prior= 0.01, sigma_noise=0.1):
         self.d = d
         self.mu = np.zeros(d)  # Mean vector of the multivariate Gaussian distribution of theta.
         self.sigma_prior = sigma_prior
@@ -35,14 +35,14 @@ class LinearBanditTS:
     - reward: Observed reward for the chosen item.
     """    
     def update(self, x, reward):
-        # Update the inverse of the covariance matrix.
+        # Update the inverse of the covariance matrix. 
         self.sigma_inv += np.outer(x, x) / (self.sigma_noise**2)
         
         # Update the covariance matrix.
         self.cov_matrix = np.linalg.inv(self.sigma_inv)
         
         # Update the mean vector of the multivariate Gaussian distribution.
-        self.mu += np.dot(self.cov_matrix, x) * (reward / (self.sigma_noise**2))
+        self.mu = np.dot(self.cov_matrix, (np.dot(self.sigma_inv, self.mu) + x * (reward + np.random.normal(0, self.sigma_noise)) / (self.sigma_noise**2)))
 
 
     """
