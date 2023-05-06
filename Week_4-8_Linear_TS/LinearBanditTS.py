@@ -37,8 +37,6 @@ class LinearBanditTS:
     - reward: Observed reward for the chosen item.
     """    
     def update(self, x, reward):
-        # Add noise to the reward, because that's not been done yet
-        reward += np.random.normal(0, self.sigma_noise) # the second argument should be standard deviation, not variance
 
         # Save old cov_inv, will be used later
         old_cov_inv = self.cov_inv.copy()
@@ -70,7 +68,7 @@ class LinearBanditTS:
         
     Inputs:
         - item_features: A matrix containing the feature vectors of all items.
-        - alpha: Scaling factor for the covariance matrix.
+        - alpha: Scaling factor for the covariance matrix. (controls noise, deviation from self.mu)
         
     Returns:
         - chosen_item: The index of the chosen item.
