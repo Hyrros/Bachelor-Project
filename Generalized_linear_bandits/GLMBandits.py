@@ -1,5 +1,7 @@
 import numpy as np
 from logistic_regression_tools import logistic_regression
+from LinearBanditTS import LinearBanditTS
+from environment_simulator import linear_environment
 
 # Class for logistic bandit with Thompson Sampling
 class logistic_bandit_TS(logistic_regression):
@@ -78,46 +80,29 @@ class preference_bandit_TS(logistic_bandit_TS):
         return best_choice
 
 
-## ADDED CLASS LINEAR_BANDIT_TS
-class linear_bandit_TS(logistic_regression):
-    def __init__(self, T, T_init, dim=5, k=100, alpha=1):
-        logistic_regression.__init__(self, dim, T + T_init)  # Initialize logistic_regression parent class
-        self.present_contexts = np.zeros((k, dim))  # Array to store the current contexts
-        self.chosen_arm = 0  # Initialize the chosen arm
-        self.alpha = alpha  # Hyperparameter for perturbing MLE estimate of theta
-
-    def take_action(self, contexts, exploration=False):
-        self.present_contexts = contexts.copy()  # Copy input contexts
-        if exploration:
-            chosen_arm = np.random.randint(len(contexts))  # Choose random arm if exploration is enabled
-        else:
-            chosen_arm, _ = self.TS_find_best_arm()  # Find best arm using Thompson Sampling
-        self.chosen_arm = chosen_arm
-        return self.chosen_arm, self.present_contexts[self.chosen_arm]
-        
-    def TS_find_best_arm(self):
-        H = np.linalg.inv(self.nll_hessian)  # Inverse of Hessian matrix
-        # Sample from multivariate normal distribution with mean as MLE and covariance as alpha*H
-        theta_MLE_perturbed = np.random.multivariate_normal(self.MLE, self.alpha*H)
-        chosen_arm = np.argmax(np.dot(self.present_contexts, theta_MLE_perturbed))  # Choose arm with highest expected reward
-        return chosen_arm, theta_MLE_perturbed
-
 ## MODIFIED CLASS BANDIT_TS, _init_, take_action
-class bandit_TS(preference_bandit_TS, logistic_bandit_TS, linear_bandit_TS):
-    def __init__(self, form, T, T_init, dim=5, k=100, alpha = 0.1, strategic_choice = False, history_based = False, history=100, n_bins = 2):
+class bandit_TS(preference_bandit_TS, logistic_bandit_TS, LinearBanditTS):
+    def __init__(self, form, T, T_init, dim=5, k=100, alpha=0.1, strategic_choice=False, history_based=False, history=100, n_bins=2):
         self.form = form  # Type of bandit (logistic, preference, or linear)
+        self.T_init = T_init  # Number of initial rounds
+        self.dim = dim  # Dimension of the context vectors
+        self.k = k  # Number of contexts (arms) in the environment
+        self.alpha = alpha  # Thompson Sampling exploration parameter
         # Initialize the corresponding bandit type
         if form == "logistic":
             logistic_bandit_TS.__init__(self, T, T_init, dim, k, alpha)
         elif form == "preference":
             preference_bandit_TS.__init__(self, T, T_init, dim, k, alpha, strategic_choice, history_based, history)
         elif form == "linear":
-            linear_bandit_TS.__init__(self, T, T_init, dim, k, alpha)
+            self.linear_bandit = LinearBanditTS(dim)            
         else:
             print("Unrecognised form of bandit")
 
         # Initialize performance metrics
         self.regret = np.zeros(T + T_init + 1)
+        self.lin_regret_index = 1
+        
+        # for logistic:
         self.MLE_error = np.zeros((T + T_init, dim))
         self.MLE_correlation = np.zeros(T + T_init)
         self.hessian_trace = np.zeros(T + T_init)
@@ -132,7 +117,8 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS, linear_bandit_TS):
         elif self.form == "preference":
             return preference_bandit_TS.take_action(self, contexts, exploration)
         elif self.form == "linear":
-            return linear_bandit_TS.take_action(self, contexts, exploration)
+            choosen = self.linear_bandit.choose_action(contexts, self.alpha)
+            return choosen, contexts[choosen] 
         else:
             print("Unrecognised form of bandit")
         
@@ -152,29 +138,52 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS, linear_bandit_TS):
 
     def one_step(self, Env, exploration=False):
         contexts = Env.contexts
-        chosen_arm, covariate = self.take_action(contexts, exploration)  # Choose an arm and its corresponding covariate
-        outcome = Env.generate_outcome(covariate, self.resolution)  # Generate outcome for the chosen arm
-        self.add_data((covariate, outcome))  # Add the covariate and outcome to the bandit's data
-        inst_regret = Env.calculate_inst_regret(chosen_arm)  # Calculate instant regret
-        self.update_regret(inst_regret)  # Update cumulative regret
-        current_error, current_error_norm, current_MLE_correlation, issue = Env.calculate_error(self.MLE)
-        self.update_MLE_error(current_error, current_error_norm, current_MLE_correlation)  # Update MLE error and correlation
-        if not exploration:
-            # Update model based on bandit type
-            if self.form == "logistic":
-                self.update_logistic()
-            elif self.form == "linear":
-                self.update_linear()
+        issue = False
+        if self.form == "logistic":
+            chosen_arm, covariate = self.take_action(contexts, exploration)  # Choose an arm and its corresponding covariate
+            outcome = Env.generate_outcome(covariate, self.resolution)  # Generate outcome for the chosen arm
+            self.add_data((covariate, outcome))  # Add the covariate and outcome to the bandit's data
+            inst_regret = Env.calculate_inst_regret(chosen_arm)  # Calculate instant regret
+            self.update_regret(inst_regret)  # Update cumulative regret
+            current_error, current_error_norm, current_MLE_correlation, issue = Env.calculate_error(self.MLE)
+            self.update_MLE_error(current_error, current_error_norm, current_MLE_correlation)  # Update MLE error and correlation
+            if not exploration:
+                self.update_logistic()  # Update logistic model
+
+        elif self.form == "linear":
+            env = linear_environment(dim=self.dim, k=self.k)
+            env.contexts = Env.contexts
+            chosen_arm, _ = self.take_action(contexts, exploration)  # Choose an arm
+            mean_reward, noisy_reward = env.observe_reward(chosen_arm)  # Observe the mean and noisy reward of the chosen arm
+            outcome = noisy_reward  # The outcome is the noisy reward
+            inst_regret = env.calculate_lin_inst_regret(chosen_arm)  # Calculate instant regret
+            self.update_linear_regret(inst_regret)  # Update cumulative regret
+            if not exploration:
+                self.update_linear(contexts[chosen_arm], outcome)  # Update linear model
+
+        else:
+            print("Unrecognised form of bandit")
+
         return issue
     
     def update_logistic(self):
         self.calculate_MLE()  # Update MLE estimate of theta
         self.update_hessian_metrics()  # Update Hessian-related metrics
 
-    def update_linear(self):
-        # TODO: Implement linear model update here
+    def update_linear(self, chosen_item_features, noisy_reward):
+        self.linear_bandit.update(chosen_item_features, noisy_reward)  # Update linear model
+
+    def update_linear_regret(self, inst_regret):
+        self.regret[self.lin_regret_index] = self.regret[self.lin_regret_index-1] + inst_regret
+        self.lin_regret_index += 1
+
+    
+    # linear_add_data, should add new data points and update the covariance matrix...?
+    def linear_add_data(self, item_features, noisy_reward):
+        # TODO: add data to the linear bandit
         pass
 
 
+        
 
     

@@ -178,6 +178,21 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     regrets = environment.get_regrets()
     return regrets
 
+def one_step_linear(self, item_features, true_theta, sigma_noise, alpha):
+    # Choose an action based on item features and alpha
+    chosen_item = self.choose_action(item_features, alpha)
+
+    # Observe the reward from the environment
+    mean_reward, noisy_reward = Environment.observe_reward(true_theta, item_features, chosen_item, sigma_noise)
+
+    # Calculate and store the regret
+    regret = Environment.calculate_regret(true_theta, item_features, chosen_item)
+
+    # Update the algorithm with the observed data
+    self.update(item_features[chosen_item], noisy_reward)
+
+    return chosen_item, mean_reward, noisy_reward, regret
+
 
 """
     Run the Thompson Sampling algorithm for multiple runs and plot the average regret.

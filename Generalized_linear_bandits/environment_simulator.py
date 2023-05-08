@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import numpy as np
@@ -78,3 +77,50 @@ class environment():
             estimate_correlation = np.dot(estimate, self.theta) / (np.linalg.norm(estimate) * np.linalg.norm(self.theta))
         # Return error vector, error (L2 norm), angle (arccos of correlation), and issue flag (for debugging)
         return error_vec, error, np.arccos(estimate_correlation), issue
+
+
+class linear_environment(environment):
+    """
+        Initialize the environment.
+        
+        Inputs:
+        - d: Dimension of the feature vectors.
+        - item_features: A matrix containing the feature vectors of all items.
+        - true_theta: The true theta vector used to generate rewards.
+        - num_rounds: The number of rounds for which the simulation will run.
+        - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    """
+    def __init__(self, dim, k, context_norm=1.0, theta_norm=1.0, sigma_noise=1.0):
+        super().__init__(dim, k, context_norm, theta_norm)
+        self.sigma_noise = sigma_noise
+        self.cumulative_regret = 0
+
+    def generate_theta(self, norm=1):
+        self.theta = np.random.uniform(low=-1, high=1, size=self.dim)/self.dim  
+
+    def generate_contexts(self):
+        self.contexts = np.random.uniform(low=-1, high=1, size=(self.k, self.dim))/self.dim
+        #self.contexts /= np.linalg.norm(self.contexts, axis=1, keepdims=True)
+
+
+    """
+        Observe the reward and noisy reward for the chosen item.
+        
+        Inputs:
+        - chosen_item: The index of the chosen item.
+        
+        Returns:
+        - mean_reward: The true mean reward for the chosen item.
+        - noisy_reward: The observed reward with added Gaussian noise.
+    """
+    def observe_reward(self, chosen_item):
+        mean_reward = self.theta @ self.contexts[chosen_item]
+        noisy_reward = mean_reward + np.random.normal(0, self.sigma_noise)
+        return mean_reward, noisy_reward
+
+    # Calculate the instantaneous regret for selecting a specific arm,
+    # which is the difference between the best possible reward and the expected reward for that arm
+    def calculate_lin_inst_regret(self, arm):
+        expected_reward = np.dot(self.contexts[arm], self.theta)
+        best_reward = np.max(np.dot(self.contexts, self.theta))
+        return best_reward - expected_reward
