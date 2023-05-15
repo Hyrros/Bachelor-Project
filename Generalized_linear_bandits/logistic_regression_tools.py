@@ -17,7 +17,7 @@ class logistic_regression():
         self.MLE = np.zeros(dim)  # maximum likelihood estimate of parameters
         self.neg_log_likelihood = 0  # negative log-likelihood
         self.nll_gradient = np.zeros(dim)  # gradient of the negative log-likelihood
-        self.nll_hessian = regularizer*np.identity(dim)  # Hessian of the negative log-likelihood
+        self.nll_hessian = regularizer*np.identity(dim)  # Hessian of the negative log-likelihood !!USED AT EACH SAMPLE!!
         self.regularizer = regularizer  # regularization parameter
         self.n = 0  # number of data points added
 
@@ -49,7 +49,7 @@ class logistic_regression():
         if theta is None:
             theta = self.MLE
         T1 = np.dot(self.covariates[:self.n], theta)
-        T2 = np.log(1 + np.exp(T1))
+        T2 = np.log(1 + np.exp(T1)) 
         T3 = -self.outcomes[:self.n]*T1
         T4 = self.regularizer*np.dot(theta, theta)/2 # regularization term
         nll = np.sum(T2 + T3) + T4
@@ -86,7 +86,7 @@ class logistic_regression():
     
 
     # Calculate the MLE using Newton's method with a specified error threshold
-    def calculate_MLE(self, error=0.0001):
+    def calculate_MLE(self, error=0.001):
         MLE = self.MLE.copy()
         nll = self.neg_log_likelihood
         gradient = self.nll_gradient.copy()
