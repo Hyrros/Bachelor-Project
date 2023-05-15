@@ -100,10 +100,8 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS, LinearBanditTS):
         #self.regret = np.zeros(T + T_init + 1)
         
         # for logistic:
-        self.hessian_trace = np.zeros(T + T_init)
-        self.hessian_eigvals = np.zeros((T + T_init, dim))
-        self.hessian_eigvecs = np.zeros((T + T_init, dim, dim))
-        self.resolution = int(n_bins) - 1
+
+        self.resolution = 1
         
     def take_action(self, contexts, exploration=False):
         # Call the corresponding take_action method based on the bandit type
@@ -113,12 +111,6 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS, LinearBanditTS):
             return preference_bandit_TS.take_action(self, contexts, exploration)
         else:
             print("Unrecognised form of bandit")
-
-        
-    def update_hessian_metrics(self):
-        # Update Hessian-related metrics (trace, eigenvalues, and eigenvectors)
-        self.hessian_trace[self.n-1] = np.trace((self.nll_hessian))
-        self.hessian_eigvals[self.n-1], self.hessian_eigvecs[self.n-1] = np.linalg.eigh(self.nll_hessian)
 
     def one_step(self, Env, exploration=False):
         contexts = Env.contexts # Env.item_features
