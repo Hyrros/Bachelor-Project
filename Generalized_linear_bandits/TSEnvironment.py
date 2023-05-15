@@ -1,6 +1,5 @@
 from LinearBanditTS import *
 from GLMBandits import bandit_TS
-from environment_simulator import logistic_environment
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -28,13 +27,15 @@ class Environment:
         - num_rounds: The number of rounds for which the simulation will run.
         - sigma_noise: Standard deviation of the Gaussian noise in the reward.
     """
-    def __init__(self, d, item_features, true_theta, num_rounds, sigma_noise, type= "linear"):
-        self.d = d
+    def __init__(self, dim, item_features, true_theta, num_rounds, sigma_noise, type= "linear"):
+        self.dim = dim
+        self.k = item_features.shape[0] # TODO check if useful
         self.item_features = item_features
         self.true_theta = true_theta
         self.num_rounds = num_rounds
         self.sigma_noise = sigma_noise
         self.type = type
+        self.mean_reward = 0
 
         self.best_item = np.argmax(item_features @ true_theta)
         self.regrets = np.zeros(num_rounds, dtype=float)
@@ -54,13 +55,12 @@ class Environment:
     """
     def generate_reward(self, chosen_item_index):
         if self.type == "linear":
-            mean_reward = self.true_theta @ self.item_features[chosen_item_index]
-            noisy_reward = mean_reward + np.random.normal(0, self.sigma_noise)
+            self.mean_reward = self.true_theta @ self.item_features[chosen_item_index]
+            noisy_reward = self.mean_reward + np.random.normal(0, self.sigma_noise)
         if self.type == "logistic":
-            # TODO: modify mean/noisy reward for logistic -> generate_outcome
-            mean_reward = sig(np.dot(self.item_features[chosen_item_index], self.true_theta))       
-            noisy_reward = np.random.binomial(1, mean_reward)
-        return mean_reward, noisy_reward
+            self.mean_reward = sig(self.theta @ self.item_features[chosen_item_index])     
+            noisy_reward = np.random.binomial(1, self.mean_reward)
+        return noisy_reward
 
 
     """
@@ -70,13 +70,11 @@ class Environment:
         - t: The current time step.
         - mean_reward: The true mean reward for the chosen item.
     """
-    def calculate_regret(self, t, mean_reward):
+    def calculate_regret(self, t):
         if self.type == "linear":
-            regret = self.true_theta @ self.item_features[self.best_item] - mean_reward
+            regret = self.true_theta @ self.item_features[self.best_item] - self.mean_reward
         elif self.type == "logistic":
-            # TODO: modify regret for logistic
-            print("regret for logistic not implemented yet")
-            regret = sig(self.true_theta @ self.item_features[self.best_item]) - sig(mean_reward)
+            regret = sig(np.dot(self.true_theta, self.item_features[self.best_item])) - self.mean_reward
         self.cumulative_regret += regret
         self.regrets[t] = self.cumulative_regret
 
@@ -84,11 +82,7 @@ class Environment:
     # Returns the error vector, the error (as L2 norm), the angle between the two vectors (as arccos of their correlation),
     # and a boolean flag issue for debugging purposes
     def calculate_error(self, estimate, t):
-        if self.type == "linear":
-            error_vec = self.true_theta - estimate
-        elif self.type == "logistic":
-            # TODO: modify error for logistic
-            error_vec = self.true_theta - estimate
+        error_vec = self.true_theta - estimate
         error = np.linalg.norm(error_vec)
         self.errors[t] = error
         return error_vec, error
@@ -132,34 +126,6 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     if type == "linear": 
         bandit = LinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise)
     elif type == "logistic":
-        bandit = GeneralizedLinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise)
-    else :
-        # throw error
-        print("type not recognized")
-    
-    
-    # Initialize the environment
-    environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise)
-
-    for t in range(num_rounds):
-        chosen_item_index = bandit.choose_action(item_features, alpha)
-        # TODO: mean reward could be saved as a variable in env, to not give anything more than what is needs
-        mean_reward, noisy_reward = environment.generate_reward(chosen_item_index)
-        environment.calculate_regret(t, mean_reward)
-        environment.calculate_error(bandit.mu, t)
-        bandit.update(item_features[chosen_item], noisy_reward)
-
-    regrets = environment.get_regrets()
-    errors = environment.get_errors()
-    return regrets, errors
-
-def run_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type = "linear"):
-
-    # Initialize the linear Thompson Sampling algorithm
-    bandit = None
-    if type == "linear": 
-        bandit = LinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise)
-    elif type == "logistic":
         bandit = bandit_TS("logistic", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
     else :
         # throw error
@@ -171,7 +137,7 @@ def run_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise
     if type == "linear":
         environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise)
     elif type == "logistic":
-        environment = logistic_environment(d, item_features, true_theta, num_rounds, sigma_noise, "logistic")
+        environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = "logistic")
     else :
         # throw error
         print("type not recognized")
@@ -179,18 +145,16 @@ def run_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise
     for t in range(num_rounds):
         if type == "linear":
             chosen_item_index = bandit.choose_action(item_features, alpha)
-            # TODO: mean reward could be saved as a variable in env, to not give anything more than what is needs
-            mean_reward, noisy_reward = environment.generate_reward(chosen_item_index)
-            environment.calculate_regret(t, mean_reward)
+            noisy_reward = environment.generate_reward(chosen_item_index)
+            environment.calculate_regret(t)
             environment.calculate_error(bandit.mu, t)
             bandit.update(item_features[chosen_item_index], noisy_reward)
         elif type == "logistic":
             chosen_item, chosen_item_index = bandit.one_step(environment)
-            mean_reward, noisy_reward = environment.generate_reward(chosen_item_index)
+            noisy_reward = environment.generate_reward(chosen_item_index)
             bandit.add_data((chosen_item, noisy_reward))
-            environment.calculate_regret(t, mean_reward)
-            current_error, current_error_norm, current_MLE_correlation, issue = environment.calculate_error(bandit.MLE, t)
-            #bandit.update_MLE_error(current_error, current_error_norm, current_MLE_correlation, issue)
+            environment.calculate_regret(t)
+            environment.calculate_error(bandit.MLE, t)
             bandit.update_logistic()
             
         else :
@@ -218,7 +182,7 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
     errors = np.zeros(num_rounds, dtype=float)
 
     for run in range(nbr_runs):
-        regret, errors = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
+        regret, errors = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
         regrets += regret
         errors += errors
 
@@ -228,42 +192,6 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
     plot_regret(average_regrets)
     plot_error(average_errors)
 
-def run_and_plot_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise, nbr_runs, alpha = 1.0, type = "linear"):
-    regrets = np.zeros(num_rounds, dtype=float)
-    errors = np.zeros(num_rounds, dtype=float)
-
-    for run in range(nbr_runs):
-        regret, errors = run_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
-        regrets += regret
-        errors += errors
-
-    average_regrets = np.divide(regrets, nbr_runs)
-    average_errors = np.divide(errors, nbr_runs)
-
-    plot_regret(average_regrets)
-    plot_error(average_errors)
-
-"""
-    Plot the cumulative regret as a function of time.
-    
-    Inputs:
-    - regrets: A numpy array containing the cumulative regret at each time step.
-"""
-def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time'):
-    plt.plot(regrets)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Cumulative Regret')
-    plt.title(title)
-    plt.show()
-
-def plot_error(errors, title = 'Error as a Function of Time'):
-    plt.plot(errors)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Error')
-    plt.title(title)
-    plt.show()
 
 """
     Run experiments with different parameters and plot the average regret.
@@ -276,7 +204,7 @@ def plot_error(errors, title = 'Error as a Function of Time'):
     - sigma_noise: Standard deviation of the Gaussian noise in the reward.
     - nbr_runs: The number of runs for averaging.
 """
-def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs):
+def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs, type = "linear"):
     all_average_regrets = []
     total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values)
     current_experiment = 0
@@ -293,7 +221,9 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
                 current_experiment += 1
                 print('Experiment ' + str(current_experiment) + ' out of ' + str(total_nbr_experiments))
                 for run in range(nbr_runs):
-                    regret = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
+                    if current_experiment > total_nbr_experiments * 0.75:
+                        print('Run ' + str(run) + ' out of ' + str(nbr_runs))
+                    regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
                     regrets += regret
                 average_regrets = np.divide(regrets, nbr_runs)
                 all_average_regrets.append(average_regrets)
@@ -314,7 +244,11 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
 
     plt.xlabel("Number of Rounds")
     plt.ylabel("Average Regret")
-    plt.title("Average Regret vs. Number of Rounds")
+    # precise type in title
+    if type == "linear":
+        plt.title("Average Regret of Thompson Sampling with Linear Rewards")
+    elif type == "logistic":
+        plt.title("Average Regret of Thompson Sampling with Logistic Rewards")
     plt.grid()
     plt.legend()
     plt.show()
@@ -342,7 +276,7 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
                     for run in range(nbr_runs):
                         if current_experiment > total_nbr_experiments * 0.75:
                             print('Run ' + str(run) + ' out of ' + str(nbr_runs))
-                        regret, _ = run_thompson_sampling2(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
+                        regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
                         regrets += regret
                     average_regrets = np.divide(regrets, nbr_runs)
                     all_average_regrets.append(average_regrets)
@@ -366,3 +300,26 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
     plt.show()
 
     return all_average_regrets
+
+
+"""
+    Plot the cumulative regret as a function of time.
+    
+    Inputs:
+    - regrets: A numpy array containing the cumulative regret at each time step.
+"""
+def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time'):
+    plt.plot(regrets)
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel('Cumulative Regret')
+    plt.title(title)
+    plt.show()
+
+def plot_error(errors, title = 'Error as a Function of Time'):
+    plt.plot(errors)
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel('Error')
+    plt.title(title)
+    plt.show()
