@@ -1,5 +1,6 @@
 from LinearBanditTS import *
 from GLMBandits import bandit_TS
+from environment_simulator import logistic_environment
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -29,14 +30,14 @@ class Environment:
     """
     def __init__(self, dim, item_features, true_theta, num_rounds, sigma_noise, type= "linear"):
         self.dim = dim
-        self.k = item_features.shape[0] # TODO check if useful
+        self.k = item_features.shape[0]
         self.item_features = item_features
         self.true_theta = true_theta
         self.num_rounds = num_rounds
         self.sigma_noise = sigma_noise
         self.type = type
-        self.mean_reward = 0
 
+        self.mean_reward = 0
         self.best_item = np.argmax(item_features @ true_theta)
         self.regrets = np.zeros(num_rounds, dtype=float)
         self.cumulative_regret = 0
@@ -59,6 +60,7 @@ class Environment:
             noisy_reward = self.mean_reward + np.random.normal(0, self.sigma_noise)
         if self.type == "logistic":
             self.mean_reward = sig(self.theta @ self.item_features[chosen_item_index])     
+            #p = np.exp(mean_reward)/(1 + np.exp(mean_reward))
             noisy_reward = np.random.binomial(1, self.mean_reward)
         return noisy_reward
 
@@ -74,7 +76,9 @@ class Environment:
         if self.type == "linear":
             regret = self.true_theta @ self.item_features[self.best_item] - self.mean_reward
         elif self.type == "logistic":
-            regret = sig(np.dot(self.true_theta, self.item_features[self.best_item])) - self.mean_reward
+            # TODO: modify regret for logistic
+            print("regret for logistic not implemented yet")
+            regret = sig(self.true_theta @ self.item_features[self.best_item]) - sig(self.mean_reward)
         self.cumulative_regret += regret
         self.regrets[t] = self.cumulative_regret
 
@@ -82,7 +86,11 @@ class Environment:
     # Returns the error vector, the error (as L2 norm), the angle between the two vectors (as arccos of their correlation),
     # and a boolean flag issue for debugging purposes
     def calculate_error(self, estimate, t):
-        error_vec = self.true_theta - estimate
+        if self.type == "linear":
+            error_vec = self.true_theta - estimate
+        elif self.type == "logistic":
+            # TODO: modify error for logistic
+            error_vec = self.true_theta - estimate
         error = np.linalg.norm(error_vec)
         self.errors[t] = error
         return error_vec, error
@@ -137,7 +145,7 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     if type == "linear":
         environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise)
     elif type == "logistic":
-        environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = "logistic")
+        environment = logistic_environment(d, item_features, true_theta, num_rounds, sigma_noise, "logistic")
     else :
         # throw error
         print("type not recognized")
@@ -145,6 +153,7 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     for t in range(num_rounds):
         if type == "linear":
             chosen_item_index = bandit.choose_action(item_features, alpha)
+            # TODO: mean reward could be saved as a variable in env, to not give anything more than what is needs
             noisy_reward = environment.generate_reward(chosen_item_index)
             environment.calculate_regret(t)
             environment.calculate_error(bandit.mu, t)
@@ -154,7 +163,8 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
             noisy_reward = environment.generate_reward(chosen_item_index)
             bandit.add_data((chosen_item, noisy_reward))
             environment.calculate_regret(t)
-            environment.calculate_error(bandit.MLE, t)
+            current_error, current_error_norm, current_MLE_correlation, issue = environment.calculate_error(bandit.MLE, t)
+            #bandit.update_MLE_error(current_error, current_error_norm, current_MLE_correlation, issue)
             bandit.update_logistic()
             
         else :
@@ -221,6 +231,11 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
                 current_experiment += 1
                 print('Experiment ' + str(current_experiment) + ' out of ' + str(total_nbr_experiments))
                 for run in range(nbr_runs):
+                    # Generate random item_features with values between -1 and 1
+                    item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
+                    # Generate a random true_theta with values between -1 and 1
+                    true_theta = np.random.uniform(low=-1, high=1, size=d)/d
+                    regrets = np.zeros(num_rounds, dtype=float)
                     if current_experiment > total_nbr_experiments * 0.75:
                         print('Run ' + str(run) + ' out of ' + str(nbr_runs))
                     regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
@@ -274,6 +289,10 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
                     current_experiment += 1
                     print('Experiment ' + str(current_experiment) + ' out of ' + str(total_nbr_experiments))
                     for run in range(nbr_runs):
+                                                # Generate random item_features with values between -1 and 1
+                        item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
+                        # Generate a random true_theta with values between -1 and 1
+                        true_theta = np.random.uniform(low=-1, high=1, size=d)/d
                         if current_experiment > total_nbr_experiments * 0.75:
                             print('Run ' + str(run) + ' out of ' + str(nbr_runs))
                         regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
