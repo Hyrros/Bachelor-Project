@@ -2,8 +2,16 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from environment_simulator import sig, sig_der
 from sklearn.linear_model import LogisticRegression
+
+
+# Define the sigmoid activation function
+def sig(x):
+    return 1/(1 + np.exp(-x))
+
+# Define the derivative of the sigmoid activation function
+def sig_der(x):
+    return sig(x)*(1-sig(x))
 
 # Define a logistic regression class for learning and estimating parameters
 class logistic_regression():
