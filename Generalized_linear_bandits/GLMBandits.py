@@ -119,7 +119,8 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS):
         return chosen_arm, chosen_arm_index
     
     def update_logistic(self):
-        self.calculate_MLE()  # Update MLE estimate of theta
+        count = self.calculate_MLE()  # Update MLE estimate of theta
+        return count
 
 
         

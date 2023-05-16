@@ -1,6 +1,7 @@
 from TSEnvironment import Environment
 from GLMBandits import bandit_TS
 from LinearBanditTS import LinearBanditTS
+from tqdm.notebook import tqdm, trange
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -41,7 +42,8 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     else :
         # throw error
         print("type not recognized")
-
+        
+    counts = np.zeros(num_rounds)
     for t in range(num_rounds):
         if type == "linear":
             chosen_item_index = bandit.choose_action(item_features, alpha)
@@ -56,12 +58,16 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
             bandit.add_data((chosen_item, noisy_reward))
             environment.calculate_regret(t)
             environment.calculate_error(bandit.MLE, t)
-            bandit.update_logistic()
+            counts[t] = bandit.update_logistic()
             
         else :
             # throw error
             print("type not recognized")
 
+    # Print total sums of counts and print average counts per round
+    if type == "logistic":
+        print("Total number of iterations in calculate.mle : ", np.sum(counts))
+        print("Average number of iteration per rounds in calculate.mle: ", np.mean(counts))
     regrets = environment.get_regrets()
     errors = environment.get_errors()
     return regrets, errors
@@ -82,10 +88,10 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
     regrets = np.zeros(num_rounds, dtype=float)
     errors = np.zeros(num_rounds, dtype=float)
 
-    for run in range(nbr_runs):
-        regret, errors = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
+    for run in trange(nbr_runs, desc='Runs progress', leave=False):
+        regret, error = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
         regrets += regret
-        errors += errors
+        errors += error
 
     average_regrets = np.divide(regrets, nbr_runs)
     average_errors = np.divide(errors, nbr_runs)
@@ -107,27 +113,26 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
 """
 def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs, type = "linear"):
     all_average_regrets = []
-    total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values)
-    current_experiment = 0
+    total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values) * nbr_runs
+    pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
     for d in d_values:
         for num_items in num_items_values:
             for alpha in alpha_values:
 
-                current_experiment += 1
-                print('Experiment ' + str(current_experiment) + ' out of ' + str(total_nbr_experiments))
+                regrets = np.zeros(num_rounds, dtype=float)
+
                 for run in range(nbr_runs):
-                    
+
                     # Generate random item_features with values between -1 and 1
                     item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
                     # Generate a random true_theta with values between -1 and 1
                     true_theta = np.random.uniform(low=-1, high=1, size=d)/d
-                    regrets = np.zeros(num_rounds, dtype=float)
-                    
-                    if current_experiment > total_nbr_experiments * 0.75:
-                        print('Run ' + str(run) + ' out of ' + str(nbr_runs))
+
                     regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
                     regrets += regret
-                
+
+                    pbar.update()
+
                 average_regrets = np.divide(regrets, nbr_runs)
                 all_average_regrets.append(average_regrets)
 
@@ -160,27 +165,27 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
 
 def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs):
     all_average_regrets = []
-    total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values) * 2 # 2 for linear and logistic
-    current_experiment = 0
+    total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values) * nbr_runs * 2 # 2 for linear and logistic
+    pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
     for d in d_values:
         for num_items in num_items_values:
             for alpha in alpha_values:
                 for type in ['linear', 'logistic']:
 
-                    current_experiment += 1
-                    print('Experiment ' + str(current_experiment) + ' out of ' + str(total_nbr_experiments))
+                    regrets = np.zeros(num_rounds, dtype=float)
+
                     for run in range(nbr_runs):
-                    
+
                         # Generate random item_features with values between -1 and 1
                         item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
                         # Generate a random true_theta with values between -1 and 1
                         true_theta = np.random.uniform(low=-1, high=1, size=d)/d
-                        regrets = np.zeros(num_rounds, dtype=float)
-                        if current_experiment > total_nbr_experiments * 0.75:
-                            print('Run ' + str(run) + ' out of ' + str(nbr_runs))
+
                         regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
                         regrets += regret
-                    
+
+                        pbar.update()
+
                     average_regrets = np.divide(regrets, nbr_runs)
                     all_average_regrets.append(average_regrets)
                     

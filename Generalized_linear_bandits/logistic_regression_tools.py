@@ -125,3 +125,4 @@ class logistic_regression():
         self.neg_log_likelihood = nll
         self.nll_gradient = gradient.copy()
         self.nll_hessian = hessian.copy()
+        return count
