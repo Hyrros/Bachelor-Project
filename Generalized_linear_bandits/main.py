@@ -153,9 +153,9 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
     plt.xlabel("Number of Rounds")
     plt.ylabel("Average Regret")
     if type == "linear":
-        plt.title("Average Regret of Thompson Sampling with Linear Rewards")
+        plt.title("Average Regret of Thompson Sampling with Linear type")
     elif type == "logistic":
-        plt.title("Average Regret of Thompson Sampling with Logistic Rewards")
+        plt.title("Average Regret of Thompson Sampling with Logistic type")
     plt.grid()
     plt.legend()
     plt.show()
