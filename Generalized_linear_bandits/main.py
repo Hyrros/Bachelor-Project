@@ -113,6 +113,7 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
 """
 def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs, type = "linear"):
     all_average_regrets = []
+    all_average_errors = []
     total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values) * nbr_runs
     pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
     for d in d_values:
@@ -120,6 +121,7 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
             for alpha in alpha_values:
 
                 regrets = np.zeros(num_rounds, dtype=float)
+                errors = np.zeros(num_rounds, dtype=float)
 
                 for run in range(nbr_runs):
 
@@ -128,13 +130,16 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
                     # Generate a random true_theta with values between -1 and 1
                     true_theta = np.random.uniform(low=-1, high=1, size=d)/d
 
-                    regret, _ = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
+                    regret, error = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
                     regrets += regret
+                    errors += error
 
                     pbar.update()
 
                 average_regrets = np.divide(regrets, nbr_runs)
                 all_average_regrets.append(average_regrets)
+                average_errors = np.divide(errors, nbr_runs)
+                all_average_errors.append(average_errors)
 
                 description = ''
                 # If there is only one value for a parameter, we don't need to include it in the description
@@ -146,16 +151,33 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
                     if len(alpha_values) != 1:
                         description += 'alpha = ' + str(alpha) + ', '
                     description =  description if description != '' else 'd = ' + str(d) + ', num_items = ' + str(num_items) + ', alpha = ' + str(alpha)
+                    plt.figure("Regret")
                     plt.plot(average_regrets, label=description)
+                    plt.figure("Error")
+                    plt.plot(average_errors, label=description)
                 else:
+                    plt.figure("Regret")
                     plt.plot(average_regrets, label=f'd={d}, items={num_items}, alpha={alpha}')
-
+                    plt.figure("Error")
+                    plt.plot(average_errors, label=f'd={d}, items={num_items}, alpha={alpha}')
+    plt.figure("Regret")
     plt.xlabel("Number of Rounds")
     plt.ylabel("Average Regret")
     if type == "linear":
         plt.title("Average Regret of Thompson Sampling with Linear type")
     elif type == "logistic":
         plt.title("Average Regret of Thompson Sampling with Logistic type")
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+    plt.figure("Error")
+    plt.xlabel("Number of Rounds")
+    plt.ylabel("Average Error")
+    if type == "linear":
+        plt.title("Average Error of Thompson Sampling with Linear type")
+    elif type == "logistic":
+        plt.title("Average Error of Thompson Sampling with Logistic type")
     plt.grid()
     plt.legend()
     plt.show()
