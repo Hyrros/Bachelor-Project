@@ -39,6 +39,9 @@ class Environment:
         self.regrets = np.zeros(num_rounds, dtype=float)
         self.cumulative_regret = 0
         self.errors = np.zeros(num_rounds, dtype=float)
+        self.mean_rewards = np.zeros(num_rounds, dtype=float)
+        self.dot_products = np.zeros(num_rounds, dtype=float)
+        self.t = 0
 
 
     """
@@ -53,11 +56,29 @@ class Environment:
     """
     def generate_reward(self, chosen_item_vector, linear_reward = False):
         if self.type == "linear" or linear_reward:
-            self.mean_reward = self.true_theta @ chosen_item_vector
+            dot_product = self.true_theta @ chosen_item_vector
+            self.dot_products[self.t] = dot_product
+            self.mean_reward = dot_product
+            self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = self.mean_reward + np.random.normal(0, self.sigma_noise)
-        if self.type == "logistic" or self.type == "preference":
-            self.mean_reward = sig(self.true_theta @ chosen_item_vector)     
+        elif self.type == "logistic":
+            dot_product = self.true_theta @ chosen_item_vector
+            self.dot_products[self.t] = dot_product
+            self.mean_reward = sig(dot_product)
+            self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = np.random.binomial(1, self.mean_reward)
+        elif self.type == "preference":
+            dot_product = self.true_theta @ chosen_item_vector
+            self.dot_products[self.t] = dot_product
+            self.mean_rewards[self.t] = sig(dot_product)
+            noisy_reward = np.random.binomial(1, self.mean_rewards[self.t])
+        else:
+            raise ValueError("Environment type not recognized")
+        
+        # print t, dot product, mean reward from dot_products, mean_rewards
+        #print(f"t: {self.t}, dot product: {self.dot_products[self.t]}, mean reward: {self.mean_rewards[self.t]}")
+
+        self.t += 1
         return noisy_reward
 
 
@@ -100,5 +121,11 @@ class Environment:
     """
     def get_errors(self):
         return self.errors
+    
+    def get_dot_products(self):
+        return self.dot_products
+    
+    def get_mean_rewards(self):
+        return self.mean_rewards
 
 

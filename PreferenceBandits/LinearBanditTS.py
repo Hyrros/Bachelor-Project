@@ -76,7 +76,7 @@ class LinearBanditTS:
     def choose_action(self, item_features, alpha=1.0):
         sampled_theta = self.sample_theta(alpha)
         chosen_item_index = np.argmax(item_features @ sampled_theta)
-        return item_features[chosen_item_index], chosen_item_index
+        return chosen_item_index
     
 
     

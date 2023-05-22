@@ -46,15 +46,15 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     counts = np.zeros(num_rounds)
     for t in range(num_rounds):
         if type == "linear":
-            chosen_item_index = bandit.choose_action(item_features, alpha)
-            noisy_reward = environment.generate_reward(chosen_item_index)
+            chosen_item, chosen_item_index = bandit.choose_action(item_features, alpha)
+            noisy_reward = environment.generate_reward(chosen_item)
             environment.calculate_regret(t)
             environment.calculate_error(bandit.mu, t)
             bandit.update(item_features[chosen_item_index], noisy_reward)
 
         elif type == "logistic":
             chosen_item, chosen_item_index = bandit.one_step(environment)
-            noisy_reward = environment.generate_reward(chosen_item_index)
+            noisy_reward = environment.generate_reward(chosen_item)
             bandit.add_data((chosen_item, noisy_reward))
             environment.calculate_regret(t)
             environment.calculate_error(bandit.MLE, t)

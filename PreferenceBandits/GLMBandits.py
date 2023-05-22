@@ -109,8 +109,11 @@ class bandit_TS(preference_bandit_TS, logistic_bandit_TS):
         contexts = Env.item_features # Env.item_features
         issue = False
         if self.form == "logistic":
-            chosen_arm_index, chosen_arm = self.take_action(contexts, exploration)  # Choose an arm and its corresponding covariate
-        return chosen_arm, chosen_arm_index
+            chosen_arm_index, chosen_arm_vector = self.take_action(contexts, exploration)  # Choose an arm and its corresponding covariate
+        elif self.form == "preference":
+            chosen_arm_index, chosen_arm_vector = self.take_action(contexts, exploration)
+            # chosen_arm_vector = context_difference
+        return chosen_arm_vector, chosen_arm_index
     
     def update_logistic(self):
         count = self.calculate_MLE()  # Update MLE estimate of theta
