@@ -3,8 +3,7 @@ from GLMBandits import bandit_TS
 from LinearBanditTS import LinearBanditTS
 from tqdm.notebook import tqdm, trange
 import numpy as np
-import matplotlib.pyplot as plt
-
+from helper import *
 # Define the sigmoid activation function
 def sig(x):
     return 1/(1 + np.exp(-x))
@@ -123,8 +122,8 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
 
     plot_regret(average_regrets)
     plot_error(average_errors)
-    #plot_dot_products(average_dot_products)
-    #plot_mean_rewards(average_mean_rewards)
+    plot_dot_products(average_dot_products)
+    plot_mean_rewards(average_mean_rewards)
     plot_dot_products_and_mean_rewards(average_dot_products, average_mean_rewards)
 
 
@@ -133,9 +132,16 @@ def run_preference_experiment(d, item_features, true_thetas, num_rounds, sigma_n
     total_nbr_experiments = len(true_thetas) * nbr_runs
     pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
 
-    for true_theta in true_thetas:
+    fig, axs = plt.subplots(len(true_thetas) + 1, 1, figsize=(15, (len(true_thetas) + 1) * 5))
+
+    all_average_regrets = []
+    all_average_errors = []
+
+    for i, true_theta in enumerate(true_thetas):
         all_dot_products = []
         all_mean_rewards = []
+        all_regrets = np.zeros(num_rounds, dtype=float)
+        all_errors = np.zeros(num_rounds, dtype=float)
 
         for run in range(nbr_runs):
             if generate_context:
@@ -143,65 +149,34 @@ def run_preference_experiment(d, item_features, true_thetas, num_rounds, sigma_n
                 item_features = np.random.uniform(low=-1, high=1, size=item_features.shape)
                 item_features[:, -1] = 1  # Set the last feature to 1 for all items
             
-            _, _, dot_product, mean_reward = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
+            regrets, errors, dot_product, mean_reward = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type)
 
             all_dot_products.extend(dot_product)
             all_mean_rewards.extend(mean_reward)
+            all_regrets += regrets
+            all_errors += errors
 
             pbar.update()
 
-        # plot the mean_rewards as a function of dot_products, the label is the true_theta
-        label = 'last comp: ' + str(true_theta[-1])
-        plt.scatter(all_dot_products, all_mean_rewards, label=label, alpha=0.5)
+        plot_preference_dot_products(all_dot_products, all_mean_rewards, true_theta, axs, i)
+        axs[-1].scatter(all_dot_products, all_mean_rewards, alpha=0.5, label='last comp: ' + str(true_theta[-1]))
 
-    plt.xlabel("Dot Products")
-    plt.ylabel("Mean rewards")
-    plt.title("Mean rewards as a function of dot products")
-    plt.grid()
-    plt.legend()
+        average_regrets = all_regrets / nbr_runs
+        average_errors = all_errors / nbr_runs
+
+        all_average_regrets.append(average_regrets)
+        all_average_errors.append(average_errors)
+
+    axs[-1].set_xlabel("Dot Products")
+    axs[-1].set_ylabel("Mean rewards")
+    axs[-1].set_title("Comparison of mean rewards as a function of dot products for all true thetas")
+    axs[-1].grid()
+    axs[-1].legend()
+
+    plt.tight_layout()
     plt.show()
 
+    plot_average_regret(all_average_regrets, true_thetas, num_rounds)
+    plot_average_error(all_average_errors, true_thetas, num_rounds)
 
-"""
-    Plot the cumulative regret as a function of time.
-    
-    Inputs:
-    - regrets: A numpy array containing the cumulative regret at each time step.
-"""
-def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time'):
-    plt.plot(regrets)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Cumulative Regret')
-    plt.title(title)
-    plt.show()
 
-def plot_error(errors, title = 'Error as a Function of Time'):
-    plt.plot(errors)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Error')
-    plt.title(title)
-    plt.show()
-
-def plot_dot_products(dot_products, title = 'Dot product between true_theta and item_features'):
-    plt.plot(dot_products)
-    plt.xlabel("Time")
-    plt.ylabel("Dot product between true_theta and item_features")
-    plt.title(title)
-    plt.show()
-
-def plot_mean_rewards(mean_rewards, title = 'Mean reward'):
-    plt.plot(mean_rewards)
-    plt.xlabel("Time")
-    plt.ylabel("Mean reward")
-    plt.title(title)
-    plt.show()
-
-# Plot the dot_products as the X_axis and the mean_rewards as the Y_axis
-def plot_dot_products_and_mean_rewards(dot_products, mean_rewards, title = 'Mean reward as a function of the dot product between true_theta and item_features'):
-    plt.scatter(dot_products, mean_rewards)
-    plt.xlabel("Dot product between true_theta and item_features")
-    plt.ylabel("Mean reward")
-    plt.title(title)
-    plt.show()
