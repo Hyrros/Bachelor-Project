@@ -79,7 +79,6 @@ class preference_bandit_TS(logistic_bandit_TS):
         return best_choice
 
 
-## MODIFIED CLASS BANDIT_TS, _init_, take_action
 class bandit_TS(preference_bandit_TS, logistic_bandit_TS):
     def __init__(self, form, T, T_init, dim=5, k=100, alpha=0.1, strategic_choice=False, history_based=False, history=100, n_bins=2):
         self.form = form  # Type of bandit (logistic, preference, or linear)

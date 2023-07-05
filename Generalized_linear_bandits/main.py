@@ -27,7 +27,7 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     
     assert type in ["linear", "logistic"], "Error: type must be either 'linear' or 'logistic'."
 
-    # Initialize the linear Thompson Sampling algorithm
+    # Initialize the linear Thompson Sampling agent
     bandit = LinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise) if type == "linear" else bandit_TS("logistic", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
     # Initialize the environment
     environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = type)
@@ -194,6 +194,26 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
 
 
 
+"""
+    Run experiments with different set of parameters and compare the results between preference and linear TS bandits and for each true theta vector in the list
+    `true_thetas`. It performs `nbr_runs` runs for each true theta and computes the average regret,
+    error, dot product distribution, and mean reward for both logistic and plinear types of the
+    algorithm. The results are then plotted.
+
+    Inputs:
+    - d: Dimension of the feature vectors.
+    - item_features: A matrix containing the feature vectors of all items.
+    - true_thetas: A list of true theta vectors.
+    - num_rounds: The number of rounds for which the simulation will run.
+    - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    - nbr_runs: The number of runs for averaging.
+    - alpha: Scaling factor for the covariance matrix (default: 1.0).
+    - last_component_array: An array of values for the last component of true theta.
+    
+    Returns:
+    - None
+
+"""
 def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs):
     all_average_regrets = []
     all_average_errors = []
@@ -251,6 +271,24 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
 
 
 
+"""
+    Run the Thompson Sampling algorithm for multiple true theta vectors with varying last components
+    and plot the results.
+
+    Inputs:
+    - d: Dimension of the feature vectors.
+    - item_features: A matrix containing the feature vectors of all items.
+    - true_thetas: A list of true theta vectors used to generate rewards.
+    - num_rounds: The number of rounds for which the simulation will run.
+    - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    - nbr_runs: The number of runs for averaging.
+    - alpha: Scaling factor for the covariance matrix.
+    - type: Type of the algorithm.
+    - last_component_array: An array of values for the last component of true theta.
+
+    Returns:
+    - None
+"""
 def run_theta_last_component_experiment(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha, type, last_component_array):
 
     total_nbr_experiments = len(true_thetas) * nbr_runs

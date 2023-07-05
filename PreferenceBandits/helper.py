@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-
+import numpy as np
 
 """
     Plot the cumulative regret as a function of time.
-    
+
     Inputs:
-    - regrets: A numpy array containing the cumulative regret at each time step.
+    regrets : A numpy array containing the cumulative regret at each time step.
+    label : Label for the plot line.
+    title : Title for the plot.
 """
 def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time', label =''):
     if label == '':
@@ -19,6 +21,15 @@ def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time', labe
     plt.title(title)
     plt.show()
 
+
+"""
+    Plot the error as a function of time.
+
+    Inputs:
+    errors : A numpy array containing the error at each time step.
+    label : Label for the plot line.
+    title : Title for the plot.
+"""
 def plot_error(errors, title = 'Error as a Function of Time', label =''):
     if label == '':
         plt.plot(errors)
@@ -30,6 +41,10 @@ def plot_error(errors, title = 'Error as a Function of Time', label =''):
     plt.title(title)
     plt.show()
 
+
+"""
+    Plot the dot products between the true theta and the item features as a function of time.
+"""
 def plot_dot_products(dot_products, title = 'Dot product between true_theta and item_features', label =''):
     if label == '':
         plt.plot(dot_products)
@@ -40,6 +55,10 @@ def plot_dot_products(dot_products, title = 'Dot product between true_theta and 
     plt.title(title)
     plt.show()
 
+
+""""
+    Plot the mean rewards as a function of time.
+"""
 def plot_mean_rewards(mean_rewards, title = 'Mean reward', label =''):
     if label == '':
         plt.plot(mean_rewards)
@@ -50,7 +69,9 @@ def plot_mean_rewards(mean_rewards, title = 'Mean reward', label =''):
     plt.title(title)
     plt.show()
 
-# Plot the dot_products as the X_axis and the mean_rewards as the Y_axis
+""""
+    Plot the dot_products as the X_axis and the mean_rewards as the Y_axis
+"""
 def plot_dot_products_and_mean_rewards(dot_products, mean_rewards, title = 'Mean reward as a function of the dot product between true_theta and item_features'):
     plt.scatter(dot_products, mean_rewards)
     plt.xlabel("Dot product between true_theta and item_features")
@@ -97,3 +118,33 @@ def plot_average_error(average_errors, true_thetas, num_rounds):
     plt.legend()
     plt.grid()
     plt.show()
+
+def plot_results(x, y1, y2, title, x_label, y_label, type1='logistic', type2='preference', plot_type='line'):
+    plt.figure(figsize=(12, 6))
+    plt.title(title)
+
+    if plot_type == 'line':
+        plt.plot(x, y1, label=type1)
+        plt.plot(x, y2, label=type2)
+    elif plot_type == 'hist':
+        plt.hist(y1, bins=20, alpha=0.5, label=type1)
+        plt.hist(y2, bins=20, alpha=0.5, label=type2)
+    elif plot_type == 'scatter':
+        plt.scatter(x, y1, label=type1)
+    else:
+        raise ValueError(f"Invalid plot_type: {plot_type}. Expected 'line', 'hist', or 'scatter'.")
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.grid()
+    plt.legend()
+    plt.show()
+
+
+# Define the sigmoid activation function
+def sig(x):
+    return 1/(1 + np.exp(-x))
+
+# Define the derivative of the sigmoid activation function
+def sig_der(x):
+    return sig(x)*(1-sig(x))

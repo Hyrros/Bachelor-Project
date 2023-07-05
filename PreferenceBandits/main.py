@@ -4,9 +4,8 @@ from LinearBanditTS import LinearBanditTS
 from tqdm.notebook import tqdm, trange
 import numpy as np
 from helper import *
-# Define the sigmoid activation function
-def sig(x):
-    return 1/(1 + np.exp(-x))
+
+
 
 """
     Run the Thompson Sampling algorithm for a given number of rounds.
@@ -22,33 +21,28 @@ def sig(x):
     
     Returns:
     - regrets: A numpy array containing the cumulative regret at each time step.
+    - errors: A numpy array containing the errors at each time step.
+    - dot_products: A numpy array containing the dot products between estimated and true theta at each time step.
+    - mean_rewards: A numpy array containing the mean rewards at each time step.
 """
 def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha, type = "linear"):
 
-    # Initialize the linear Thompson Sampling algorithm
+    # Initialize the linear Thompson Sampling agent and environment
     bandit = None
+    environment = None
     if type == "linear": 
         bandit = LinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise)
-    elif type == "logistic":
-        bandit = bandit_TS("logistic", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
-    elif type == "preference":
-        bandit = bandit_TS("preference", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
-    else :
-        # throw error
-        print("type not recognized")
-    
-    # Initialize the environment
-    environment = None
-    if type == "linear":
         environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise)
     elif type == "logistic":
+        bandit = bandit_TS("logistic", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
         environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = "logistic")
     elif type == "preference":
+        bandit = bandit_TS("preference", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
         environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = "preference")
     else :
         # throw error
         print("type not recognized")
-        
+
     counts = np.zeros(num_rounds)
     for t in range(num_rounds):
         if type == "linear":
@@ -67,10 +61,10 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
             counts[t] = bandit.update_logistic()
         
         elif type == "preference":
-            context_diff_vector, chosen_item_index = bandit.one_step(environment) # TODO: modify one step or take_action to return context_difference
+            context_diff_vector, chosen_item_index = bandit.one_step(environment)
             # chosen_item_vector = chosen_item - comparison_item # X_i - X_j
             environment.mean_reward = sig(environment.true_theta @ item_features[chosen_item_index])
-            noisy_reward = environment.generate_reward(context_diff_vector) # TODO: is bernoulli reward?
+            noisy_reward = environment.generate_reward(context_diff_vector) 
             bandit.add_data((context_diff_vector, noisy_reward))
             environment.calculate_regret(t)
             environment.calculate_error(bandit.MLE, t)
@@ -97,6 +91,7 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
     - sigma_noise: Standard deviation of the Gaussian noise in the reward.
     - nbr_runs: The number of runs for averaging.
     - alpha: Scaling factor for the covariance matrix (default: 1.0).
+    - type: Type of the algorithm (default: "linear").
 """
 def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, nbr_runs, alpha = 1.0, type = "linear"):
     regrets = np.zeros(num_rounds, dtype=float)
@@ -128,7 +123,18 @@ def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sig
 
 
 
-
+"""
+    Run experiments with different parameters and plot the average regret.
+    
+    Inputs:
+    - d_values: A list of dimensions for the feature vectors.
+    - num_items_values: A list of numbers of items.
+    - alpha_values: A list of scaling factors for the covariance matrix.
+    - num_rounds: The number of rounds for which the simulation will run.
+    - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    - nbr_runs: The number of runs for averaging.
+    - type: Type of the algorithm (default: "linear").
+"""
 def run_preference_experiment(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha=1.0, type="preference", generate_context=False):
     total_nbr_experiments = len(true_thetas) * nbr_runs
     pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
@@ -184,7 +190,23 @@ def run_preference_experiment(d, item_features, true_thetas, num_rounds, sigma_n
 
 
 
+"""
+    Run the Thompson Sampling algorithm for multiple true theta vectors and plot the results.
 
+    Inputs:
+    - d: Dimension of the feature vectors.
+    - item_features: A matrix containing the feature vectors of all items.
+    - true_thetas: A list of true theta vectors used to generate rewards.
+    - num_rounds: The number of rounds for which the simulation will run.
+    - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    - nbr_runs: The number of runs for averaging.
+    - alpha: Scaling factor for the covariance matrix.
+    - type: Type of the algorithm.
+    - last_component_array: An array of values for the last component of true theta.
+
+    Returns:
+    - None
+"""
 def run_theta_experiment(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha, type, last_component_array):
     all_average_regrets = []
     all_average_errors = []
@@ -257,6 +279,28 @@ def run_theta_experiment(d, item_features, true_thetas, num_rounds, sigma_noise,
         plot_dot_products_and_mean_rewards(average_dot_products, average_mean_rewards)
 
 
+
+
+"""
+    Run experiments with different set of parameters and compare the results between preference and GLM bandits and for each true theta vector in the list
+    `true_thetas`. It performs `nbr_runs` runs for each true theta and computes the average regret,
+    error, dot product distribution, and mean reward for both logistic and preference types of the
+    algorithm. The results are then plotted.
+
+    Inputs:
+    - d: Dimension of the feature vectors.
+    - item_features: A matrix containing the feature vectors of all items.
+    - true_thetas: A list of true theta vectors.
+    - num_rounds: The number of rounds for which the simulation will run.
+    - sigma_noise: Standard deviation of the Gaussian noise in the reward.
+    - nbr_runs: The number of runs for averaging.
+    - alpha: Scaling factor for the covariance matrix (default: 1.0).
+    - last_component_array: An array of values for the last component of true theta.
+    
+    Returns:
+    - None
+
+"""
 def run_versus_experiment(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha, last_component_array):
     average_results = {
         "logistic": {"regrets": [], "errors": [], "dot_products": [], "mean_rewards": []},
@@ -295,51 +339,48 @@ def run_versus_experiment(d, item_features, true_thetas, num_rounds, sigma_noise
             average_results[type]["dot_products"].append(average_dot_products)
             average_results[type]["mean_rewards"].append(average_mean_rewards)
 
+    # plot results
+    rounds = range(num_rounds)
     for i, last_component in enumerate(last_component_array):
-        # Regrets
-        plt.figure(figsize=(12, 6))
-        plt.title(f'Regrets with last component: {last_component}')
-        plt.plot(average_results["logistic"]["regrets"][i], label="logistic")
-        plt.plot(average_results["preference"]["regrets"][i], label="preference")
-        plt.xlabel('Round')
-        plt.ylabel('Average regret')
-        plt.grid()
-        plt.legend()
-        plt.show()
+            # Regrets
+            plot_results(rounds, 
+                        average_results["logistic"]["regrets"][i], 
+                        average_results["preference"]["regrets"][i], 
+                        f'Regrets with last component: {last_component}', 
+                        'Round', 
+                        'Average regret')
 
-        # Errors
-        plt.figure(figsize=(12, 6))
-        plt.title(f'Errors with last component: {last_component}')
-        plt.plot(average_results["logistic"]["errors"][i], label="logistic")
-        plt.plot(average_results["preference"]["errors"][i], label="preference")
-        plt.xlabel('Round')
-        plt.ylabel('Average error')
-        plt.grid()
-        plt.legend()
-        plt.show()
+            # Errors
+            plot_results(rounds, 
+                        average_results["logistic"]["errors"][i], 
+                        average_results["preference"]["errors"][i], 
+                        f'Errors with last component: {last_component}', 
+                        'Round', 
+                        'Average error')
 
-        # Dot product histogram
-        plt.figure(figsize=(12, 6))
-        plt.title(f'Dot product distribution with last component: {last_component}')
-        plt.hist(average_results["logistic"]["dot_products"][i], bins=20, alpha=0.5, label="logistic")
-        plt.hist(average_results["preference"]["dot_products"][i], bins=20, alpha=0.5, label="preference")
-        plt.xlabel('Dot product')
-        plt.ylabel('Frequency')
-        plt.grid()
-        plt.legend()
-        plt.show()
+            # Dot product histogram
+            plot_results(None, 
+                        average_results["logistic"]["dot_products"][i], 
+                        average_results["preference"]["dot_products"][i], 
+                        f'Dot product distribution with last component: {last_component}', 
+                        'Dot product', 
+                        'Frequency',
+                        plot_type='hist')
 
-        # Mean reward scatter plot continued...
-        plt.scatter(average_results["logistic"]["dot_products"][i], average_results["logistic"]["mean_rewards"][i], label="logistic")
-        plt.xlabel('Dot product')
-        plt.ylabel('Mean reward')
-        plt.grid()
-        plt.legend()
-        plt.show()
+            # Mean reward scatter plot continued...
+            plot_results(average_results["logistic"]["dot_products"][i], 
+                        average_results["logistic"]["mean_rewards"][i], 
+                        None, 
+                        f'Mean reward with last component: {last_component}', 
+                        'Dot product', 
+                        'Mean reward',
+                        plot_type='scatter')
 
-        plt.scatter(average_results["preference"]["dot_products"][i], average_results["preference"]["mean_rewards"][i], label="preference")
-        plt.xlabel('Dot product')
-        plt.ylabel('Mean reward')
-        plt.grid()
-        plt.legend()
-        plt.show()
+            plot_results(average_results["preference"]["dot_products"][i], 
+                        average_results["preference"]["mean_rewards"][i], 
+                        None, 
+                        f'Mean reward with last component: {last_component}', 
+                        'Dot product', 
+                        'Mean reward',
+                        type1='preference',
+                        plot_type='scatter')

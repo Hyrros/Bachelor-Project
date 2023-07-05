@@ -1,14 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-
-# Define the sigmoid activation function
-def sig(x):
-    return 1/(1 + np.exp(-x))
-
-# Define the derivative of the sigmoid activation function
-def sig_der(x):
-    return sig(x)*(1-sig(x))
+from helper import *
 
 
 """
@@ -46,10 +38,10 @@ class Environment:
 
     """
         Observe the reward and noisy reward for the chosen item.
-        
+
         Inputs:
         - chosen_item: The index of the chosen item.
-        
+
         Returns:
         - mean_reward: The true mean reward for the chosen item.
         - noisy_reward: The observed reward with added Gaussian noise.
@@ -61,12 +53,14 @@ class Environment:
             self.mean_reward = dot_product
             self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = self.mean_reward + np.random.normal(0, self.sigma_noise)
+
         elif self.type == "logistic":
             dot_product = self.true_theta @ chosen_item_vector
             self.dot_products[self.t] = dot_product
             self.mean_reward = sig(dot_product)
             self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = np.random.binomial(1, self.mean_reward)
+
         elif self.type == "preference":
             dot_product = self.true_theta @ chosen_item_vector
             self.dot_products[self.t] = dot_product
@@ -74,9 +68,6 @@ class Environment:
             noisy_reward = np.random.binomial(1, self.mean_rewards[self.t])
         else:
             raise ValueError("Environment type not recognized")
-        
-        # print t, dot product, mean reward from dot_products, mean_rewards
-        #print(f"t: {self.t}, dot product: {self.dot_products[self.t]}, mean reward: {self.mean_rewards[self.t]}")
 
         self.t += 1
         return noisy_reward
@@ -84,7 +75,7 @@ class Environment:
 
     """
         Calculate and store the regret at time step t.
-        
+
         Inputs:
         - t: The current time step.
         - mean_reward: The true mean reward for the chosen item.
@@ -114,7 +105,7 @@ class Environment:
 
 
     """
-        Returns the regrets for all time steps.
+        Return the regrets for all time steps.
         
         Returns:
         - regrets: A numpy array containing the cumulative regret at each time step.
@@ -122,15 +113,33 @@ class Environment:
     def get_regrets(self):
         return self.regrets
     
+    
     """
-        Returns the errors for all time steps.
+        Return the errors for all time steps.
+        
+        Returns:
+        - errors: A numpy array containing the error at each time step.
     """
     def get_errors(self):
         return self.errors
     
+
+    """
+        Return the dot products for all time steps.
+        
+        Returns:
+        - dot_products: A numpy array containing the dot product at each time step.
+    """
     def get_dot_products(self):
         return self.dot_products
     
+
+    """
+        Return the mean rewards for all time steps.
+        
+        Returns:
+        - mean_rewards: A numpy array containing the mean reward at each time step.
+    """
     def get_mean_rewards(self):
         return self.mean_rewards
 
