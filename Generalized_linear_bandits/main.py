@@ -2,8 +2,10 @@ from TSEnvironment import Environment
 from GLMBandits import bandit_TS
 from LinearBanditTS import LinearBanditTS
 from tqdm.notebook import tqdm, trange
+from helper import *
 import numpy as np
-import matplotlib.pyplot as plt
+import seaborn as sns
+
 
 
 """
@@ -27,7 +29,6 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
 
     # Initialize the linear Thompson Sampling algorithm
     bandit = LinearBanditTS(d, sigma_prior=1.0, sigma_noise=sigma_noise) if type == "linear" else bandit_TS("logistic", num_rounds, 0, dim=d, k=len(item_features), alpha = alpha)
-   
     # Initialize the environment
     environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise, type = type)
 
@@ -189,22 +190,9 @@ def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_
     plt.grid()
     plt.legend()
     plt.show()
-
     return all_average_regrets, all_average_errors, all_average_dot_products, all_average_mean_rewards
 
 
-# Define a helper function for plotting results
-def plot_results(fig_number, data, label, xlabel, ylabel, title):
-    plt.figure(fig_number)
-    plt.grid()
-    plt.plot(data, label=label)
-    plt.xlabel(xlabel)
-    plt.ylabel(ylabel)
-    plt.title(title)
-
-
-
-import seaborn as sns
 
 def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs):
     all_average_regrets = []
@@ -262,62 +250,9 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
     return all_average_regrets, all_average_errors
 
 
-"""
-    Plot the cumulative regret as a function of time.
-    
-    Inputs:
-    - regrets: A numpy array containing the cumulative regret at each time step.
-"""
-def plot_regret(regrets, title = 'Cumulative Regret as a Function of Time'):
-    plt.plot(regrets)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Cumulative Regret')
-    plt.title(title)
-    plt.show()
 
-def plot_error(errors, title = 'Error as a Function of Time'):
-    plt.plot(errors)
-    plt.grid()
-    plt.xlabel('Time')
-    plt.ylabel('Error')
-    plt.title(title)
-    plt.show()
+def run_theta_last_component_experiment(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha, type, last_component_array):
 
-def plot_dot_products(dot_products, title = 'Dot product between true_theta and item_features', label =''):
-    if label == '':
-        plt.plot(dot_products)
-    else:
-        plt.plot(dot_products, label=label)
-    plt.xlabel("Time")
-    plt.ylabel("Dot product between true_theta and item_features")
-    plt.title(title)
-    plt.show()
-
-def plot_mean_rewards(mean_rewards, title = 'Mean reward', label =''):
-    if label == '':
-        plt.plot(mean_rewards)
-    else:
-        plt.plot(mean_rewards, label=label)
-    plt.xlabel("Time")
-    plt.ylabel("Mean reward")
-    plt.title(title)
-    plt.show()
-
-# Plot the dot_products as the X_axis and the mean_rewards as the Y_axis
-def plot_dot_products_and_mean_rewards(dot_products, mean_rewards, title = 'Mean reward as a function of the dot product between true_theta and item_features'):
-    plt.scatter(dot_products, mean_rewards)
-    plt.xlabel("Dot product between true_theta and item_features")
-    plt.ylabel("Mean reward")
-    plt.title(title)
-    plt.show()
-
-
-def run_theta_experiment_linear(d, item_features, true_thetas, num_rounds, sigma_noise, nbr_runs, alpha, type, last_component_array):
-    all_average_regrets = []
-    all_average_errors = []
-    all_average_dot_products = []
-    all_average_mean_rewards = []
     total_nbr_experiments = len(true_thetas) * nbr_runs
     pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
 
@@ -348,50 +283,8 @@ def run_theta_experiment_linear(d, item_features, true_thetas, num_rounds, sigma
         average_dot_products = np.divide(all_dot_products , nbr_runs)
         average_mean_rewards = np.divide(all_mean_rewards , nbr_runs)
 
-        all_average_regrets.append(average_regrets)
-        all_average_errors.append(average_errors)
-        all_average_dot_products.append(average_dot_products)
-        all_average_mean_rewards.append(average_mean_rewards)
 
-        # plot results
-        plt.figure(figsize=(10, 4))
-        plt.suptitle(f'Experiment with last component: {last_component_array[i]}')
-
-        plt.subplot(121)
-        plt.plot(average_regrets)
-        plt.xlabel('Round')
-        plt.ylabel('Average regret')
-        plt.grid()
-
-        plt.subplot(122)
-        plt.plot(average_errors)
-        plt.xlabel('Round')
-        plt.ylabel('Average error')
-        plt.grid()
-
-        plt.tight_layout()
-        plt.show()
-
-        plt.figure(figsize=(10, 4))
-        plt.suptitle(f'Experiment with last component: {last_component_array[i]}')
-        plt.hist(average_dot_products, bins=20)
-        plt.xlabel('Dot product')
-        plt.ylabel('Frequency')
-        plt.grid()
-        plt.show()
-
+        # Plotting
+        plot_average_regret_and_error(average_regrets, average_errors, last_component_array[i])
+        plot_average_dot_products_histogram(average_dot_products, last_component_array[i])
         plot_dot_products_and_mean_rewards(average_dot_products, average_mean_rewards, title=f'Mean reward as a function of the dot product with last component: {last_component_array[i]}')
-
-
-
-def generate_description(d, num_items, alpha, type, nbr_d_values, nbr_items_values, nbr_alpha_values):
-    description = ''
-    # If there is only one value for a parameter, we don't need to include it in the description
-    if nbr_d_values != 1:
-        description += 'd = ' + str(d) + ', '
-    if nbr_items_values != 1:
-        description += 'num_items = ' + str(num_items) + ', '
-    if nbr_alpha_values != 1:
-        description += 'alpha = ' + str(alpha) + ', '
-    description += 'type = ' + type
-    return description
