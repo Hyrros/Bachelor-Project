@@ -211,13 +211,14 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
     all_average_errors = []
     total_nbr_experiments = len(d_values) * len(num_items_values) * len(alpha_values) * nbr_runs * 2  # 2 for linear and logistic
     pbar = tqdm(total=total_nbr_experiments, desc='Total progress')
+    
+    #Plotting
     fig, axs = plt.subplots(2, figsize=(10,10)) # create subplot with two axes
-
     # generate light and dark color palettes
     color_palette_linear = sns.color_palette("YlOrRd", len(d_values) * len(num_items_values) * len(alpha_values))
     color_palette_logistic = sns.color_palette("mako", len(d_values) * len(num_items_values) * len(alpha_values))
-
     color_index = 0  # Reset the color index for each new type
+
     for d in d_values:
         for num_items in num_items_values:
             for alpha in alpha_values:
@@ -242,37 +243,23 @@ def run_versus_experiments(d_values, num_items_values, alpha_values, num_rounds,
                     all_average_regrets.append(average_regrets)
                     average_errors = np.divide(errors, nbr_runs)
                     all_average_errors.append(average_errors)
-
-                    description = ''
-                    # If there is only one value for a parameter, we don't need to include it in the description
-                    if len(d_values) != 1:
-                        description += 'd = ' + str(d) + ', '
-                    if len(num_items_values) != 1:
-                        description += 'num_items = ' + str(num_items) + ', '
-                    if len(alpha_values) != 1:
-                        description += 'alpha = ' + str(alpha) + ', '
-                    description += 'type = ' + type
-
+    
+    
+    # Plotting
+                    description = generate_description(d, num_items, alpha, type, len(d_values), len(num_items_values), len(alpha_values))
                     color = color_palette_linear[color_index] if type == 'linear' else color_palette_logistic[color_index]
                     axs[0].plot(average_regrets, label=description, color=color)
                     axs[1].plot(average_errors, label=description, color=color)
-                    
                 color_index += 1  # Update the color index
-
 
     axs[0].set(xlabel="Number of Rounds", ylabel="Average Regret", title="Average Regret depending on Number of Rounds")
     axs[1].set(xlabel="Number of Rounds", ylabel="Average Error", title="Average Error depending on Number of Rounds")
-
     for ax in axs:
         ax.grid()
         ax.legend()
-
     plt.tight_layout()  # To ensure that the titles and labels of different sub
     plt.show()
-
     return all_average_regrets, all_average_errors
-
-
 
 
 """
@@ -397,3 +384,14 @@ def run_theta_experiment_linear(d, item_features, true_thetas, num_rounds, sigma
 
 
 
+def generate_description(d, num_items, alpha, type, nbr_d_values, nbr_items_values, nbr_alpha_values):
+    description = ''
+    # If there is only one value for a parameter, we don't need to include it in the description
+    if nbr_d_values != 1:
+        description += 'd = ' + str(d) + ', '
+    if nbr_items_values != 1:
+        description += 'num_items = ' + str(num_items) + ', '
+    if nbr_alpha_values != 1:
+        description += 'alpha = ' + str(alpha) + ', '
+    description += 'type = ' + type
+    return description
