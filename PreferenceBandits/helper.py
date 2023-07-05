@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+
 
 """
     Plot the cumulative regret as a function of time.
@@ -56,14 +58,21 @@ def plot_dot_products_and_mean_rewards(dot_products, mean_rewards, title = 'Mean
     plt.title(title)
     plt.show()
 
-# heper functions for run_preference_experiment
-def plot_preference_dot_products(dot_products, mean_rewards, true_theta, axs, index):
+def plot_preference_dot_products(ax, dot_products, mean_rewards, true_theta):
     label = 'last comp: ' + str(true_theta[-1])
-    axs[index].scatter(dot_products, mean_rewards, alpha=0.5)
-    axs[index].set_xlabel("Dot Products")
-    axs[index].set_ylabel("Mean rewards")
-    axs[index].set_title("Mean rewards as a function of dot products\n" + label)
-    axs[index].grid()
+    ax.scatter(dot_products, mean_rewards, alpha=0.5)
+    ax.set_xlabel("Dot Products")
+    ax.set_ylabel("Mean rewards")
+    ax.set_title("Mean rewards as a function of dot products\n" + label)
+    ax.grid()
+
+
+def plot_preference_histogram(ax, dot_products):
+    ax.hist(dot_products, orientation="vertical", bins=20, alpha=0.5)
+    ax.set_xlabel("Dot Products")
+    ax.set_ylabel("Frequency")
+    ax.set_title("Histogram of Dot Products")
+    plt.setp(ax.get_yticklabels(), visible=True)  # unhide the y ticks
 
 def plot_average_regret(average_regrets, true_thetas, num_rounds):
     plt.figure(figsize=(10,5))

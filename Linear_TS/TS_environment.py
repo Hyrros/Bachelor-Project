@@ -27,6 +27,8 @@ class Environment:
         self.regrets = np.zeros(num_rounds, dtype=float)
         self.cumulative_regret = 0
 
+        self.errors = np.zeros(num_rounds, dtype=float)
+
 
     """
         Observe the reward and noisy reward for the chosen item.
@@ -56,6 +58,15 @@ class Environment:
         self.cumulative_regret += regret
         self.regrets[t] = self.cumulative_regret
 
+    # Calculate the error between the true theta vector and an estimate.
+    # Returns the error vector, the error (as L2 norm), the angle between the two vectors (as arccos of their correlation),
+    # and a boolean flag issue for debugging purposes
+    def calculate_error(self, estimate, t):
+        error_vec = self.true_theta - estimate
+        error = np.linalg.norm(error_vec)
+        self.errors[t] = error
+        return error_vec, error
+
 
     """
         Returns the regrets for all time steps.
@@ -65,6 +76,9 @@ class Environment:
     """
     def get_regrets(self):
         return self.regrets
+    
+    def get_errors(self):
+        return self.errors
 
 
 
@@ -90,15 +104,22 @@ def run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise,
 
     # Initialize the environment
     environment = Environment(d, item_features, true_theta, num_rounds, sigma_noise)
+    pbar = tqdm(total=num_rounds, desc="Running bandit")
 
     for t in range(num_rounds):
         chosen_item = algorithm.choose_action(item_features, alpha)
         mean_reward, noisy_reward = environment.observe_reward(chosen_item)
         environment.calculate_regret(t, mean_reward)
+        environment.calculate_error(algorithm.mu, t)
         algorithm.update(item_features[chosen_item], noisy_reward)
+        pbar.update(1)
 
+    pbar.close()
     regrets = environment.get_regrets()
-    return regrets
+    errors = environment.get_errors()
+    return regrets, errors
+
+
 
 def one_step_linear(self, item_features, true_theta, sigma_noise, alpha):
     # Choose an action based on item features and alpha
@@ -129,29 +150,38 @@ def one_step_linear(self, item_features, true_theta, sigma_noise, alpha):
     - alpha: Scaling factor for the covariance matrix (default: 1.0).
 """
 def run_and_plot_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, nbr_runs, alpha = 1.0):
+    num_items = item_features.shape[0]  # get the number of items from the shape of item_features
     regrets = np.zeros(num_rounds, dtype=float)
+    errors = np.zeros(num_rounds, dtype=float)
 
     for run in range(nbr_runs):
-        regret = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
+        regret, error = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
         regrets += regret
+        errors += error
 
     average_regrets = np.divide(regrets, nbr_runs)
+    average_errors = np.divide(errors, nbr_runs)
 
-    plot_regret(average_regrets)
+    plot_regret(average_regrets, d, num_items, alpha, sigma_noise, nbr_runs)
+    plot_error(average_errors, d, num_items, alpha, sigma_noise, nbr_runs)
 
-"""
-    Plot the cumulative regret as a function of time.
-    
-    Inputs:
-    - regrets: A numpy array containing the cumulative regret at each time step.
-"""
-def plot_regret(regrets):
+def plot_regret(regrets, d, num_items, alpha, sigma, nbr_runs):
     plt.plot(regrets)
     plt.grid()
     plt.xlabel('Time')
     plt.ylabel('Cumulative Regret')
-    plt.title('Cumulative Regret as a Function of Time')
+    plt.title(f'Cumulative Regret as a Function of Time\n(d={d}, items={num_items}, alpha={alpha}, nbr_runs={nbr_runs})')
     plt.show()
+
+def plot_error(errors, d, num_items, alpha, sigma, nbr_runs):
+    plt.plot(errors)
+    plt.grid()
+    plt.xlabel('Time')
+    plt.ylabel('Error')
+    plt.title(f'Error as a Function of Time\n(d={d}, items={num_items}, alpha={alpha}, nbr_runs={nbr_runs})')
+    plt.show()
+
+
 
 
 """
@@ -165,39 +195,57 @@ def plot_regret(regrets):
     - sigma_noise: Standard deviation of the Gaussian noise in the reward.
     - nbr_runs: The number of runs for averaging.
 """
+from tqdm import tqdm
+
+import matplotlib.pyplot as plt
+
 def run_experiments(d_values, num_items_values, alpha_values, num_rounds, sigma_noise, nbr_runs):
+    total_iterations = len(d_values) * len(num_items_values) * len(alpha_values) * nbr_runs
+    pbar = tqdm(total=total_iterations, desc="Running experiments")
+
+    fig, axs = plt.subplots(2, figsize=(8,8)) # Create subplot
+
     for d in d_values:
         for num_items in num_items_values:
-            # Generate random item_features with values between -1 and 1
-            item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
-            # Generate a random true_theta with values between -1 and 1
-            true_theta = np.random.uniform(low=-1, high=1, size=d)/d
-            regrets = np.zeros(num_rounds, dtype=float)
-
             for alpha in alpha_values:
+                regrets = np.zeros(num_rounds, dtype=float)
+                errors = np.zeros(num_rounds, dtype=float)
 
                 for run in range(nbr_runs):
-                    regret = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
+                    item_features = np.random.uniform(low=-1, high=1, size=(num_items, d))
+                    true_theta = np.random.uniform(low=-1, high=1, size=d) / d
+                    regret, error = run_thompson_sampling(d, item_features, true_theta, num_rounds, sigma_noise, alpha)
                     regrets += regret
+                    errors += error
+                    pbar.update(1)
+
                 average_regrets = np.divide(regrets, nbr_runs)
+                average_errors = np.divide(errors, nbr_runs)
 
                 description = ''
-                # If there is only one value for a parameter, we don't need to include it in the description
-                if (len(d_values) == 1 or  len(num_items_values) == 1 or len(alpha_values)  == 1):
+                if len(d_values) == 1 or len(num_items_values) == 1 or len(alpha_values) == 1:
                     if len(d_values) != 1:
                         description += 'd = ' + str(d) + ', '
                     if len(num_items_values) != 1:
                         description += 'num_items = ' + str(num_items) + ', '
                     if len(alpha_values) != 1:
                         description += 'alpha = ' + str(alpha) + ', '
-                    description =  description if description != '' else 'd = ' + str(d) + ', num_items = ' + str(num_items) + ', alpha = ' + str(alpha)
-                    plt.plot(average_regrets, label=description)
+                    description = description if description != '' else 'd = ' + str(d) + ', num_items = ' + str(num_items) + ', alpha = ' + str(alpha)
+                    axs[0].plot(average_regrets, label=description) # Plot regrets
+                    axs[1].plot(average_errors, label=description) # Plot errors
                 else:
-                    plt.plot(average_regrets, label=f'd={d}, items={num_items}, alpha={alpha}')
+                    axs[0].plot(average_regrets, label=f'd={d}, items={num_items}, alpha={alpha}')
+                    axs[1].plot(average_errors, label=f'd={d}, items={num_items}, alpha={alpha}')
 
-    plt.xlabel("Number of Rounds")
-    plt.ylabel("Average Regret")
-    plt.title("Average Regret vs. Number of Rounds")
-    plt.grid()
-    plt.legend()
+    pbar.close()
+
+    axs[0].set(xlabel="Number of Rounds", ylabel="Average Regret", title="Average Cumulative Regret depending on Number of Rounds")
+    axs[1].set(xlabel="Number of Rounds", ylabel="Average Error", title="Average Error depending on Number of Rounds")
+    
+    for ax in axs:
+        ax.grid()
+        ax.legend()
+    
+    plt.tight_layout()  # To ensure that the titles and labels of different subplots do not overlap
     plt.show()
+

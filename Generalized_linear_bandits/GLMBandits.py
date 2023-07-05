@@ -24,7 +24,7 @@ class logistic_bandit_TS(logistic_regression):
     # Function to find the best arm using Thompson Sampling
     def TS_find_best_arm(self):
         H = np.linalg.inv(self.nll_hessian)  # Inverse Hessian of negative log-likelihood
-        # Generate a perturbed theta from multivariate normal distribution
+        # Generate a theta hat from multivariate normal distribution
         theta_MLE_perturbed = np.random.multivariate_normal(self.MLE, self.alpha*H)
         # Choose arm with the highest dot product of contexts and perturbed theta
         chosen_arm = np.argmax(np.dot(self.present_contexts, theta_MLE_perturbed))

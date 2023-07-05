@@ -92,8 +92,14 @@ class Environment:
     def calculate_regret(self, t, linear_regret = False):
         if self.type == "linear" or linear_regret:
             regret = self.true_theta @ self.item_features[self.best_item] - self.mean_reward
+            #print("DEBUG")
         elif self.type == "logistic" or self.type == "preference":
+            #print("SIGMOID")
+            #print(sig(np.dot(self.true_theta, self.item_features[self.best_item])))
+            #print("self.mean_reward")
+            #print(self.mean_reward)
             regret = sig(np.dot(self.true_theta, self.item_features[self.best_item])) - self.mean_reward
+            #print(f"regret: {regret}")
         self.cumulative_regret += regret
         self.regrets[t] = self.cumulative_regret
 

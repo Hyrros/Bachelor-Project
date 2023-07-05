@@ -40,6 +40,10 @@ class Environment:
         self.cumulative_regret = 0
         self.errors = np.zeros(num_rounds, dtype=float)
 
+        self.mean_rewards = np.zeros(num_rounds, dtype=float)
+        self.dot_products = np.zeros(num_rounds, dtype=float)
+        self.t = 0
+
 
     """
         Observe the reward and noisy reward for the chosen item.
@@ -54,10 +58,16 @@ class Environment:
     def generate_reward(self, chosen_item_vector, linear_reward = False):
         if self.type == "linear" or linear_reward:
             self.mean_reward = self.true_theta @ chosen_item_vector
+            self.dot_products[self.t] = self.true_theta @ chosen_item_vector
+            self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = self.mean_reward + np.random.normal(0, self.sigma_noise)
         if self.type == "logistic" or self.type == "preference":
+            self.dot_products[self.t] = self.true_theta @ chosen_item_vector
             self.mean_reward = sig(self.true_theta @ chosen_item_vector)     
+            self.mean_rewards[self.t] = self.mean_reward
             noisy_reward = np.random.binomial(1, self.mean_reward)
+
+        self.t += 1
         return noisy_reward
 
 
@@ -100,5 +110,12 @@ class Environment:
     """
     def get_errors(self):
         return self.errors
+    
+    def get_dot_products(self):
+        return self.dot_products
+    
+    def get_mean_rewards(self):
+        return self.mean_rewards
+
 
 
