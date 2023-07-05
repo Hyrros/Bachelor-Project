@@ -165,7 +165,6 @@ def plot_explore_then_commit(num_arms, t_explorations, rwd, arm_probs_list, nbr_
 
     # Run the 'run_explore_then_commit' function for a range of values of T_EXPLORATION
     for i, arm_probs in enumerate(arm_probs_list):
-        print("Gap: " + str(gaps[i]) + ", Probs: " + str(arm_probs))
         
         # Initialize array to keep track of the success rates for the value of t_exploration
         selected_best_arm_list = np.zeros(len(t_explorations), dtype=float)
@@ -174,7 +173,6 @@ def plot_explore_then_commit(num_arms, t_explorations, rwd, arm_probs_list, nbr_
         # Run the 'run_explore_then_commit' function for the value of t_exploration
         selected_best_arm_list, regrets = run_explore_then_commit(num_arms, t_explorations, max_throws, rwd, arm_probs, nbr_runs)
         selected_best_arm_list[0] = 1 / num_arms
-        #print(selected_best_arm_list)
         regrets_per_gap.append(regrets)
         failure_rate_list_collection.append(probabilies_not_bost_arm - selected_best_arm_list)
         success_rate_list_collection.append(selected_best_arm_list)

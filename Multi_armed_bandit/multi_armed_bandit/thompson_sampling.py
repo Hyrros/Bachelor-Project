@@ -121,7 +121,6 @@ def plot_thompson_sampling_beta(num_arms, t_explorations, arm_probs_list, nbr_ru
 
     # Run the Thompson Sampling algorithm for each gap
     for i, arm_probs in enumerate(arm_probs_list):
-        print(f"Gap: {gaps[i]}, Probs: {arm_probs}")
         # Initialize array to keep track of the success rate for each t_exploration
         selected_best_arm_list = np.zeros(len(t_explorations), dtype=float)
 
